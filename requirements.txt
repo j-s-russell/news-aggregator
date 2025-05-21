@@ -1,0 +1,7 @@
+pandas
+requests
+psycopg2-binary
+python-dotenv
+transformers
+torch
+scikit-learn
