@@ -1,0 +1,39 @@
+name: Update News Articles
+
+on:
+  schedule:
+    - cron: "0 9,21 * * *"  # Runs at 9am and 9pm UTC every day
+  workflow_dispatch:        # Manual trigger
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run ingest.py
+      env:
+        USER: ${{ secrets.USER }}
+        PASSWORD: ${{ secrets.PASSWORD }}
+        HOST: ${{ secrets.HOST }}
+        DBNAME: ${{ secrets.DBNAME }}
+        API_KEY: ${{ secrets.API_KEY }}
+      run: |
+        echo USER=$USER >> .env
+        echo PASSWORD=$PASSWORD >> .env
+        echo HOST=$HOST >> .env
+        echo DBNAME=$DBNAME >> .env
+        echo API_KEY=$API_KEY >> .env
+        python ingest.py
