@@ -2,8 +2,8 @@ name: Update News Articles
 
 on:
   schedule:
-    - cron: "0 6,18 * * *"  # Runs at 9am and 9pm UTC every day
-  workflow_dispatch:        # Manual trigger
+    - cron: "0 6,18 * * *"
+  workflow_dispatch:
 
 jobs:
   update:
