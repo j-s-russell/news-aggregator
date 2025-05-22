@@ -107,6 +107,13 @@ HOST = os.getenv("HOST")
 PORT = os.getenv("PORT")
 DBNAME = os.getenv("DBNAME")
 
+# DELETE
+print("USER: ", USER)
+print("PASSWORD: ", PASSWORD)
+print("HOST: ", HOST)
+print("PORT: ", PORT)
+print("DBNAME: ", DBNAME)
+
 connection = psycopg2.connect(
     user=USER,
     password=PASSWORD,
