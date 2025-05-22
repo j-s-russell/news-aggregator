@@ -95,10 +95,7 @@ df['bias'] = df['source'].apply(get_bias_value)
 # Similar articles (similarity threshold TBD)
 
 
-# Connect to database
-             
-load_dotenv()
-                                      
+# Connect to database                  
 USER = os.getenv("USER")
 PASSWORD = os.getenv("PASSWORD")
 HOST = os.getenv("HOST")
