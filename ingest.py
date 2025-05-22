@@ -49,6 +49,11 @@ def get_bias_value(source):
 # Gather articles
 articles = []
 
+# DELETE
+sources = sources[:2]
+page_size = 5
+max_articles = 5
+
 for source in sources:    
     for page in range(1, (max_articles // page_size) + 1):
         params = {
