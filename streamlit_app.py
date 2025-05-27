@@ -5,8 +5,6 @@ from dotenv import load_dotenv
 import os
 
 # ---------- CONFIGURATION ----------
-load_dotenv()
-                                      
 USER = os.getenv("USER")
 PASSWORD = os.getenv("PASSWORD")
 HOST = os.getenv("HOST")
