@@ -16,7 +16,7 @@ url = 'https://newsapi.org/v2/everything'
 # Settings
 category = 'politics'
 page_size = 5
-max_articles = 20
+max_articles = 10
 
 left_sources = ['cnn', 'msnbc', 'the-huffington-post']
 right_sources = ['fox-news', 'the-washington-times', 'breitbart-news', 'national-review']
@@ -48,11 +48,6 @@ def get_bias_value(source):
 
 # Gather articles
 articles = []
-
-# DELETE
-sources = sources[:2]
-page_size = 5
-max_articles = 5
 
 for source in sources:    
     for page in range(1, (max_articles // page_size) + 1):
@@ -86,33 +81,18 @@ df['source'] = df['source'].apply(lambda x: x['id'])
 df['bias'] = df['source'].apply(get_bias_value)
 
 
-# Generate summaries
-# =============================================================================
-# summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-# 
-# # Example summary
-# summary = summarizer(article_text, max_length=130, min_length=30, do_sample=False)
-# print(summary[0]['summary_text'])
-# df['summary'] = df['text'].apply(lambda x: summarizer(x, max_length=130, min_length=30, do_sample=False)[0]['summary_text'])
-# =============================================================================
-
-
 # Similar articles (similarity threshold TBD)
 
 
-# Connect to database                  
-USER = os.getenv("USER")
-PASSWORD = os.getenv("PASSWORD")
-HOST = os.getenv("HOST")
-PORT = os.getenv("PORT")
-DBNAME = os.getenv("DBNAME")
-
-# DELETE
-print("USER: ", USER)
-print("PASSWORD: ", PASSWORD)
-print("HOST: ", HOST)
-print("PORT: ", PORT)
-print("DBNAME: ", DBNAME)
+# Connect to database
+             
+load_dotenv()
+                                      
+USER = os.getenv("user")
+PASSWORD = os.getenv("password")
+HOST = os.getenv("host")
+PORT = os.getenv("port")
+DBNAME = os.getenv("dbname")
 
 connection = psycopg2.connect(
     user=USER,
@@ -152,6 +132,19 @@ for _, row in df.iterrows():
     ))
     
     connection.commit()
+    
+
+# Delete extra articles
+
+cursor.execute("""
+    DELETE FROM news_pipeline
+    WHERE id IN (
+        SELECT id FROM news_pipeline
+        ORDER BY publish_date DESC
+        OFFSET 100
+    )
+""")
+connection.commit()
 
 cursor.close()
 connection.close()
