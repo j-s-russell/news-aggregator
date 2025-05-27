@@ -82,17 +82,13 @@ df['bias'] = df['source'].apply(get_bias_value)
 
 
 # Similar articles (similarity threshold TBD)
-
-
-# Connect to database
-             
-load_dotenv()
                                       
-USER = os.getenv("user")
-PASSWORD = os.getenv("password")
-HOST = os.getenv("host")
-PORT = os.getenv("port")
-DBNAME = os.getenv("dbname")
+# Connect to database                  
+USER = os.getenv("USER")
+PASSWORD = os.getenv("PASSWORD")
+HOST = os.getenv("HOST")
+PORT = os.getenv("PORT")
+DBNAME = os.getenv("DBNAME")
 
 connection = psycopg2.connect(
     user=USER,
