@@ -137,7 +137,7 @@ cursor.execute("""
     WHERE id IN (
         SELECT id FROM news_pipeline
         ORDER BY publish_date DESC
-        OFFSET 100
+        OFFSET 200
     )
 """)
 connection.commit()
