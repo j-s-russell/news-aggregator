@@ -20,7 +20,7 @@ max_articles = 10
 
 left_sources = ['cnn', 'msnbc', 'the-huffington-post']
 right_sources = ['fox-news', 'the-washington-times', 'breitbart-news', 'national-review']
-center_sources = ['reuters', 'bbc-news', 'associated-press', 'bloomberg', 'usa-today', 'the-hill']
+center_sources = ['reuters', 'bbc-news', 'associated-press', 'usa-today', 'the-hill']
 other_sources = ['abc-news', 'cbs-news', 'axios']
 
 sources = left_sources + right_sources + center_sources + other_sources
