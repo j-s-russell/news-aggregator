@@ -3,6 +3,8 @@ import psycopg2
 import pandas as pd
 from dotenv import load_dotenv
 import os
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 # ---------- CONFIGURATION ----------
 USER = os.getenv("USER")
@@ -10,6 +12,12 @@ PASSWORD = os.getenv("PASSWORD")
 HOST = os.getenv("HOST")
 PORT = os.getenv("PORT")
 DBNAME = os.getenv("DBNAME")
+
+USER = 'postgres'
+PASSWORD = 'P%coKrackel303521'
+HOST = 'db.npyyivugauiyowrvpgtc.supabase.co'
+PORT = 5432
+DBNAME = 'postgres'
 
 def get_bias_color(val):
     if val <= -2:
@@ -22,7 +30,32 @@ def get_bias_color(val):
         return "#FCA5A5"  # center-right - light red
     elif val >= 2:
         return "#DC2626"  # right - red
+
+def get_similar_articles(embedding_matrix, selected_index, top_n=3):
+    selected_vector = embedding_matrix[selected_index].reshape(1, -1)
+    similarities = cosine_similarity(selected_vector, embedding_matrix)[0]
+    similar_indices = similarities.argsort()[::-1][1:top_n+1]  # skip self
+    return articles.iloc[similar_indices][['id', 'title', 'url', 'abs_summary', 'ext_summary', 'source']]
     
+def display_bias_scores(scores_vector, threshold=0.7):
+    """Simple bias scores display with color coding"""
+    
+    # Check if non-political
+    if scores_vector.get('non-political', 0) > threshold:
+        st.info("**Political Bias:** Not Applicable (Non-political content)")
+        return
+    
+    # Display scores in columns
+    st.markdown("#### Political Bias Scores")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown(f"🔵 **Left:** {scores_vector.get('left-wing', 0):.1%}")
+    with col2:
+        st.markdown(f"⚪ **Center:** {scores_vector.get('center', 0):.1%}")
+    with col3:
+        st.markdown(f"🔴 **Right:** {scores_vector.get('right-wing', 0):.1%}")
+        
 
 # ---------- CONNECT TO DATABASE ----------
 @st.cache_data(ttl=600)
@@ -34,42 +67,47 @@ def get_articles():
         port=PORT,
         dbname=DBNAME
     )
-    query = "SELECT * FROM news_pipeline ORDER BY publish_date DESC LIMIT 200;"
+    query = "SELECT * FROM news_pipeline ORDER BY publish_date DESC;"
     df = pd.read_sql(query, conn)
     conn.close()
     return df
 
+
+
 # ---------- STREAMLIT APP ----------
 st.set_page_config(page_title="🗞️ News Aggregator", layout="wide")
-st.title("🗞️ News Aggregator")
-st.write("Browse articles stored in your Supabase PostgreSQL database.")
 
 # Load articles
 articles = get_articles()
+articles.reset_index(drop=True, inplace=True)
+articles['id'] = range(len(articles))
+embedding_matrix = np.stack(articles['embedding'].values)
 
-# Optional filters
-sources = st.multiselect("Filter by source", options=articles['source'].unique(), default=articles['source'].unique())
-keywords = st.text_input("Search in title or description")
+# Handle query parameters
+query_params = st.query_params
+selected_id = st.query_params.get("article_id")
 
-# Filter logic
-filtered = articles[articles['source'].isin(sources)]
+if selected_id:
+    try:
+        selected_id = int(selected_id)
+    except (ValueError, TypeError):
+        selected_id = None
 
-if keywords:
-    keyword_lower = keywords.lower()
-    filtered = filtered[
-        filtered['title'].str.lower().str.contains(keyword_lower) |
-        filtered['description'].str.lower().str.contains(keyword_lower)
-    ]
 
-# Display articles
-for _, row in filtered.iterrows():
-    st.markdown(f"### [{row['title']}]({row['url']})")
-    st.write(f"*{row['source']}* • {row['publish_date'].strftime('%B %d, %Y %H:%M')}")
-    st.write(row['description'])
-    
+# ----------------- DETAIL PAGE -----------------
+if selected_id is not None:
+    selected_id = int(selected_id)
+    article = articles[articles['id'] == selected_id].iloc[0]
+    idx = articles[articles['id'] == selected_id].index[0]
+
+    st.title(article['title'])
+    st.write(f"*{article['source']}* • {article['publish_date'].strftime('%B %d, %Y %H:%M')} • **Topic:** {article['cluster_label']}")
+    if article.get("author"):
+        st.caption(f"By {article['author']}")
+
     # Bias bar
-    bias_val = row['bias']
-    marker_color = get_bias_color(bias_val)
+    source_bias_val = article['source_bias']
+    marker_color = get_bias_color(source_bias_val)
 
     st.markdown(
         f"""
@@ -82,7 +120,7 @@ for _, row in filtered.iterrows():
              position: relative; border-radius: 6px; margin-bottom: 16px; margin-top: 8px;'>
             <div style='
                 position: absolute;
-                left: {50 + bias_val * 25}%;
+                left: {50 + source_bias_val * 25}%;
                 transform: translateX(-50%);
                 width: 16px;
                 height: 32px;
@@ -100,6 +138,126 @@ for _, row in filtered.iterrows():
         unsafe_allow_html=True
     )
     
+    
+    if article['article_bias'] is None:
+        st.info("**Estimated Article Bias:** Not Applicable (Non-Political Content)")
+        
+    else:
+        scores = {
+            'left-wing': article['article_bias'][0],
+            'center': article['article_bias'][1], 
+            'right-wing': article['article_bias'][2]
+        }
+        st.markdown("**Estimated Article Bias:** 🔵 Left: {:.1%} | ⚪ Center: {:.1%} | 🔴 Right: {:.1%}".format(
+            scores.get('left-wing', 0),
+            scores.get('center', 0), 
+            scores.get('right-wing', 0)
+        ))
+
+    st.subheader("Summary")
+    summary_type = st.radio(
+        "Choose summary type:",
+        options=["Abstractive", "Extractive"],
+        horizontal=True,
+        key=f"summary_type_{selected_id}"
+    )
+    
+    # Display the selected summary
+    if summary_type == "Abstractive":
+        st.write(article['abs_summary'])
+    elif summary_type == "Extractive":
+        st.write(article['ext_summary'])
+    st.markdown(f"[Read original article]({article['url']})", unsafe_allow_html=True)
+
+    st.subheader("Similar Articles")
+    similar_articles = get_similar_articles(embedding_matrix, idx, top_n=5)
+    for _, sim_row in similar_articles.iterrows():
+        sim_id = sim_row['id']
+        col1, col2 = st.columns([4, 1])
+        with col1:
+            st.write(f"**{sim_row['title']}** – {sim_row['source']}")
+        with col2:
+            if st.button("View", key=f"similar_{sim_id}"):
+                st.query_params["article_id"] = str(sim_id)  # This SETS the value
+                st.rerun()
+
+    # Back button
+    if st.button("⬅ Back to All Articles"):
+        st.query_params.clear()
+        st.rerun()
+
+    st.stop()
+
+# ----------------- MAIN PAGE -----------------
+st.title("🗞️ News Aggregator")
+st.write("Browse articles stored in your Supabase PostgreSQL database.")
+
+# Optional filters
+sources = st.multiselect("Filter by source", options=articles['source'].unique(), default=articles['source'].unique())
+cluster_labels = st.multiselect("Filter by topic", options=sorted(articles['cluster_label'].dropna().unique()), default=sorted(articles['cluster_label'].dropna().unique()))
+keywords = st.text_input("Search in title or description")
+
+# Filter logic
+filtered = articles[
+    articles['source'].isin(sources) & 
+    articles['cluster_label'].isin(cluster_labels)
+]
+
+if keywords:
+    keyword_lower = keywords.lower()
+    filtered = filtered[
+        filtered['title'].str.lower().str.contains(keyword_lower) |
+        filtered['description'].str.lower().str.contains(keyword_lower)
+    ]
+
+# Display filtered articles
+for idx, row in filtered.iterrows():
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        st.markdown(f"### {row['title']}")
+    with col2:
+        if st.button("Read More", key=f"main_{row['id']}"):
+            st.query_params["article_id"] = str(row['id'])  # This SETS the value
+            st.rerun()
+            
+    st.write(f"*{row['source']}* • {row['publish_date'].strftime('%B %d, %Y %H:%M')} • **Topic:** {row['cluster_label']}")
     if row.get("author"):
         st.caption(f"By {row['author']}")
+
+    # Bias bar
+    source_bias_val = row['source_bias']
+    marker_color = get_bias_color(source_bias_val)
+
+    st.markdown(
+        f"""
+        <div style='height: 16px; background: linear-gradient(to right, 
+             #2563EB 0%, 
+             #60A5FA 25%, 
+             #9CA3AF 50%, 
+             #FCA5A5 75%, 
+             #DC2626 100%);
+             position: relative; border-radius: 6px; margin-bottom: 16px; margin-top: 8px;'>
+            <div style='
+                position: absolute;
+                left: {50 + source_bias_val * 25}%;
+                transform: translateX(-50%);
+                width: 16px;
+                height: 32px;
+                background: {marker_color};
+                border: 2px solid #111;
+                border-radius: 4px;
+                box-shadow: 0 0 8px rgba(0,0,0,0.4);
+                z-index: 2;
+            '></div>
+        </div>
+        <div style='text-align: center; font-size: 0.85em; margin-top: -8px; margin-bottom: 16px; color: #FFFFFF;'>
+            <strong>Source Bias</strong>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
     st.markdown("---")
+
+
+

@@ -5,3 +5,13 @@ python-dotenv
 transformers
 torch
 scikit-learn
+newspaper3k
+beautifulsoup4
+sentence-transformers
+keybert
+google-generativeai
+streamlit
+bert-extractive-summarizer
+spacy
+sumy
+nltk
