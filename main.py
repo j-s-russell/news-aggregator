@@ -23,12 +23,12 @@ def main():
         df = summarize_articles(df)
         print("Classifying articles...")
         df = classify_bias(df)
-        print("Clustering articles...")
-        df = cluster_articles(df)
         print("Removing unprocessed articles...")
         remove_unprocessed_articles()
         print("Inserting articles...")
         insert_articles(df)
-
+        print("Clustering articles...")
+        cluster_articles()
+        
 if __name__ == "__main__":
     main()

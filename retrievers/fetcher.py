@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from newspaper import Article
 import psycopg2
 from config import *
+from database.db_client import insert_raw_articles
 
 
 def scrape(url):
@@ -33,49 +34,6 @@ def scrape(url):
     except Exception as e:
         print(f"Error downloading/parsing {url}: {e}")
         return ""
-    
-def insert_raw_articles(df):
-    connection = psycopg2.connect(
-        user=USER,
-        password=PASSWORD,
-        host=HOST,
-        port=PORT,
-        dbname=DBNAME
-    )
-    
-    cursor = connection.cursor()
-        
-    for _, row in df.iterrows():
-        title = row['title']
-        author = row['author']
-        source = row['source']
-        description = row['description']
-        url = row['url']
-        publish_date = row['publish_date']
-        content = row['content']
-        source_bias = row['source_bias']
-        top = row['top']
-    
-        cursor.execute("""
-            INSERT INTO news_pipeline (title, author, source, description, url, publish_date, content, source_bias, top)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (url) DO NOTHING
-        """, (
-            title,
-            author,
-            source,
-            description,
-            url,
-            publish_date,
-            content,
-            source_bias,
-            top
-        ))
-        
-        connection.commit()
-    
-    cursor.close()
-    connection.close()
     
     
 
@@ -193,8 +151,10 @@ def fetch_articles():
     df['content'] = df['url'].apply(scrape)
     df = df.sort_values(by='top', ascending=False)
     df = df.drop_duplicates(subset='url', keep='first')
+    df = df.drop_duplicates(subset='title', keep='first')
     df = df[df['content'].str.len().between(1000, 12000)]
     df = df[~df['content'].str.contains('live', case=False, na=False)]
+    df = df[~df['title'].str.contains('video', case=False, na=False)]
     df = df.reset_index(drop=True)
     
     insert_raw_articles(df)

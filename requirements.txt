@@ -15,3 +15,5 @@ bert-extractive-summarizer
 spacy
 sumy
 nltk
+matplotlib
+hdbscan

@@ -13,6 +13,8 @@ HOST = os.getenv("HOST")
 PORT = os.getenv("PORT")
 DBNAME = os.getenv("DBNAME")
 
+display_article_bias = False
+
 USER = 'postgres'
 PASSWORD = 'P%coKrackel303521'
 HOST = 'db.npyyivugauiyowrvpgtc.supabase.co'
@@ -83,7 +85,6 @@ articles.reset_index(drop=True, inplace=True)
 articles['id'] = range(len(articles))
 embedding_matrix = np.stack(articles['embedding'].values)
 
-# Handle query parameters
 query_params = st.query_params
 selected_id = st.query_params.get("article_id")
 
@@ -138,21 +139,21 @@ if selected_id is not None:
         unsafe_allow_html=True
     )
     
-    
-    if article['article_bias'] is None:
-        st.info("**Estimated Article Bias:** Not Applicable (Non-Political Content)")
-        
-    else:
-        scores = {
-            'left-wing': article['article_bias'][0],
-            'center': article['article_bias'][1], 
-            'right-wing': article['article_bias'][2]
-        }
-        st.markdown("**Estimated Article Bias:** 🔵 Left: {:.1%} | ⚪ Center: {:.1%} | 🔴 Right: {:.1%}".format(
-            scores.get('left-wing', 0),
-            scores.get('center', 0), 
-            scores.get('right-wing', 0)
-        ))
+    if display_article_bias:
+        if article['article_bias'] is None:
+            st.info("**Estimated Article Bias:** Not Applicable (Non-Political Content)")
+            
+        else:
+            scores = {
+                'left-wing': article['article_bias'][0],
+                'center': article['article_bias'][1], 
+                'right-wing': article['article_bias'][2]
+            }
+            st.markdown("**Estimated Article Bias:** 🔵 Left: {:.1%} | ⚪ Center: {:.1%} | 🔴 Right: {:.1%}".format(
+                scores.get('left-wing', 0),
+                scores.get('center', 0), 
+                scores.get('right-wing', 0)
+            ))
 
     st.subheader("Summary")
     summary_type = st.radio(
@@ -178,31 +179,28 @@ if selected_id is not None:
             st.write(f"**{sim_row['title']}** – {sim_row['source']}")
         with col2:
             if st.button("View", key=f"similar_{sim_id}"):
-                st.query_params["article_id"] = str(sim_id)  # This SETS the value
+                st.query_params["article_id"] = str(sim_id)
                 st.rerun()
 
-    # Back button
     if st.button("⬅ Back to All Articles"):
         st.query_params.clear()
         st.rerun()
 
     st.stop()
 
+
 # ----------------- MAIN PAGE -----------------
 st.title("🗞️ News Aggregator")
 st.write("Browse articles stored in your Supabase PostgreSQL database.")
 
-# Optional filters
 sources = st.multiselect("Filter by source", options=articles['source'].unique(), default=articles['source'].unique())
 cluster_labels = st.multiselect("Filter by topic", options=sorted(articles['cluster_label'].dropna().unique()), default=sorted(articles['cluster_label'].dropna().unique()))
 keywords = st.text_input("Search in title or description")
 
-# Filter logic
 filtered = articles[
     articles['source'].isin(sources) & 
     articles['cluster_label'].isin(cluster_labels)
 ]
-
 if keywords:
     keyword_lower = keywords.lower()
     filtered = filtered[
@@ -210,24 +208,26 @@ if keywords:
         filtered['description'].str.lower().str.contains(keyword_lower)
     ]
 
-# Display filtered articles
-for idx, row in filtered.iterrows():
+# Separate top articles from regular articles
+top_articles = filtered[filtered['top'] == True]
+regular_articles = filtered[filtered['top'] == False]
+
+def display_article(row):
     col1, col2 = st.columns([4, 1])
     with col1:
         st.markdown(f"### {row['title']}")
     with col2:
         if st.button("Read More", key=f"main_{row['id']}"):
-            st.query_params["article_id"] = str(row['id'])  # This SETS the value
+            st.query_params["article_id"] = str(row['id'])
             st.rerun()
             
     st.write(f"*{row['source']}* • {row['publish_date'].strftime('%B %d, %Y %H:%M')} • **Topic:** {row['cluster_label']}")
     if row.get("author"):
         st.caption(f"By {row['author']}")
-
+    
     # Bias bar
     source_bias_val = row['source_bias']
     marker_color = get_bias_color(source_bias_val)
-
     st.markdown(
         f"""
         <div style='height: 16px; background: linear-gradient(to right, 
@@ -256,8 +256,25 @@ for idx, row in filtered.iterrows():
         """,
         unsafe_allow_html=True
     )
-
     st.markdown("---")
 
+# Display top articles section
+if not top_articles.empty:
+    st.markdown("## Top Headlines")
+    st.markdown("*Featured stories of the day*")
+    
+    # Create scrollable container for top articles
+    with st.container(height=600, border=True):
+        for idx, row in top_articles.iterrows():
+            display_article(row)
 
-
+# Display regular articles section
+if not regular_articles.empty:
+    st.markdown("## All Articles")
+    if not top_articles.empty:  # Only show this subtitle if there are top articles above
+        st.markdown("*Browse all other stories*")
+    
+    # Create scrollable container for regular articles
+    with st.container(height=800, border=True):
+        for idx, row in regular_articles.iterrows():
+            display_article(row)
