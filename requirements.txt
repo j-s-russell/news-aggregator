@@ -17,3 +17,4 @@ sumy
 nltk
 matplotlib
 hdbscan
+lxml_html_clean
