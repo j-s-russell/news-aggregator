@@ -172,7 +172,7 @@ def insert_articles(df):
 
     cursor.execute("""
         DELETE FROM news_pipeline
-        WHERE publish_date < NOW() - INTERVAL '7 days'
+        WHERE publish_date < NOW() - INTERVAL '4 days'
     """)
     connection.commit()
     
