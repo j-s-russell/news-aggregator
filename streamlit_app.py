@@ -14,6 +14,7 @@ DBNAME = os.getenv("DBNAME")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
+display_article_bias = False
 
 def get_bias_color(val):
     if val <= -2:
@@ -26,8 +27,7 @@ def get_bias_color(val):
         return "#FCA5A5"  # center-right - light red
     elif val >= 2:
         return "#DC2626"  # right - red
-    
-    
+
 
 def get_similar_articles(embedding_matrix, selected_index, top_n=3):
     selected_vector = embedding_matrix[selected_index].reshape(1, -1)
@@ -37,7 +37,6 @@ def get_similar_articles(embedding_matrix, selected_index, top_n=3):
 
     
 def display_bias_scores(scores_vector, threshold=0.7):
-    """Simple bias scores display with color coding"""
     
     # Check if non-political
     if scores_vector.get('non-political', 0) > threshold:
@@ -185,8 +184,8 @@ if selected_id is not None:
 
 
 # ----------------- MAIN PAGE -----------------
-st.title("🗞️ News Aggregator")
-st.write("Browse articles stored in your Supabase PostgreSQL database.")
+st.title("News Aggregator")
+st.write("Browse articles from various sources")
 
 sources = st.multiselect("Filter by source", options=articles['source'].unique(), default=articles['source'].unique())
 cluster_labels = st.multiselect("Filter by topic", options=sorted(articles['cluster_label'].dropna().unique()), default=sorted(articles['cluster_label'].dropna().unique()))
@@ -258,7 +257,6 @@ if not top_articles.empty:
     st.markdown("## Top Headlines")
     st.markdown("*Featured stories of the day*")
     
-    # Create scrollable container for top articles
     with st.container(height=600, border=True):
         for idx, row in top_articles.iterrows():
             display_article(row)
@@ -269,7 +267,6 @@ if not regular_articles.empty:
     if not top_articles.empty:  # Only show this subtitle if there are top articles above
         st.markdown("*Browse all other stories*")
     
-    # Create scrollable container for regular articles
     with st.container(height=800, border=True):
         for idx, row in regular_articles.iterrows():
             display_article(row)

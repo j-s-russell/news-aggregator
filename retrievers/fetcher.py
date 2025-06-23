@@ -49,9 +49,9 @@ def fetch_articles():
     right_sources = ['fox-news', 'the-washington-times', 'breitbart-news', 'national-review']
     center_sources = ['reuters', 'bbc-news', 'associated-press', 'usa-today']
     other_sources = ['abc-news', 'cbs-news', 'axios']
-    
     sources = left_sources + right_sources + center_sources + other_sources
     
+    # Bias scores from www.allsides.com
     bias_dict = {'cnn': -1,
                  'msnbc': -2,
                  'the-huffington-post': -2,
@@ -110,7 +110,10 @@ def fetch_articles():
     top_df = pd.DataFrame(top_articles)
     top_df['top'] = True
     
-    # Everything
+    
+    
+    
+    # All other articles
     all_articles = []
     
     for source in sources:    
