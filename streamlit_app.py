@@ -6,20 +6,14 @@ import os
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
-# ---------- CONFIGURATION ----------
 USER = os.getenv("USER")
 PASSWORD = os.getenv("PASSWORD")
 HOST = os.getenv("HOST")
 PORT = os.getenv("PORT")
 DBNAME = os.getenv("DBNAME")
+NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-display_article_bias = False
-
-USER = 'postgres'
-PASSWORD = 'P%coKrackel303521'
-HOST = 'db.npyyivugauiyowrvpgtc.supabase.co'
-PORT = 5432
-DBNAME = 'postgres'
 
 def get_bias_color(val):
     if val <= -2:
@@ -32,12 +26,15 @@ def get_bias_color(val):
         return "#FCA5A5"  # center-right - light red
     elif val >= 2:
         return "#DC2626"  # right - red
+    
+    
 
 def get_similar_articles(embedding_matrix, selected_index, top_n=3):
     selected_vector = embedding_matrix[selected_index].reshape(1, -1)
     similarities = cosine_similarity(selected_vector, embedding_matrix)[0]
     similar_indices = similarities.argsort()[::-1][1:top_n+1]  # skip self
     return articles.iloc[similar_indices][['id', 'title', 'url', 'abs_summary', 'ext_summary', 'source']]
+
     
 def display_bias_scores(scores_vector, threshold=0.7):
     """Simple bias scores display with color coding"""
@@ -73,8 +70,6 @@ def get_articles():
     df = pd.read_sql(query, conn)
     conn.close()
     return df
-
-
 
 # ---------- STREAMLIT APP ----------
 st.set_page_config(page_title="🗞️ News Aggregator", layout="wide")

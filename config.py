@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-# load_dotenv(dotenv_path='/Users/joerussell/desktop/projects/news-aggregator/.env', override=True)
+load_dotenv(dotenv_path='/Users/joerussell/desktop/projects/personal_projects/news-aggregator/.env', override=True)
 
 USER = os.getenv("USER")
 PASSWORD = os.getenv("PASSWORD")

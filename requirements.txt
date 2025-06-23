@@ -4,7 +4,6 @@ psycopg2-binary
 python-dotenv
 transformers
 torch
-scikit-learn
 newspaper3k
 beautifulsoup4
 sentence-transformers
@@ -18,3 +17,6 @@ nltk
 matplotlib
 hdbscan
 lxml_html_clean
+numpy==1.26.4
+scipy==1.12.0
+scikit-learn==1.4.2
