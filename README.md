@@ -7,7 +7,6 @@ A comprehensive news aggregation and analysis platform that fetches articles fro
 - **Multi-source Article Fetching**: Pulls articles from NewsAPI with configurable sources
 - **Content Extraction**: Scrapes full article content from URLs
 - **Dual Summarization**: Generates both abstractive and extractive summaries using LSA and LLMs
-- **Bias Classification**: Automatically classifies source bias to help users understand perspective
 - **Topic Clustering**: Groups and labels related articles using KMeans and Gemini
 - **Interactive Web Interface**: Clean, responsive Streamlit dashboard for browsing articles
 - **Database Integration**: Stores processed articles in Supabase PostgreSQL database
