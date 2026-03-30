@@ -77,16 +77,28 @@ st.set_page_config(page_title="🗞️ News Aggregator", layout="wide")
 articles = get_articles()
 articles.reset_index(drop=True, inplace=True)
 articles['id'] = range(len(articles))
-embedding_matrix = np.stack(articles['embedding'].values)
 
-query_params = st.query_params
-selected_id = st.query_params.get("article_id")
+max_len = max(len(e) for e in articles['embedding'] if e is not None)
 
-if selected_id:
-    try:
-        selected_id = int(selected_id)
-    except (ValueError, TypeError):
-        selected_id = None
+# Pad/truncate function
+def pad_embedding(e):
+    if e is None:
+        return np.zeros(max_len)
+    e = np.array(e)  # convert list to numpy array
+    if len(e) < max_len:
+        return np.pad(e, (0, max_len - len(e)))
+    return e[:max_len]
+
+# Apply to all embeddings
+embedding_matrix = np.stack(articles['embedding'].apply(pad_embedding).values)
+
+# REPLACE
+
+# Use session_state as the sole source of truth for navigation
+if "article_id" not in st.session_state:
+    st.session_state["article_id"] = None
+
+selected_id = st.session_state["article_id"]
 
 
 # ----------------- DETAIL PAGE -----------------
@@ -173,11 +185,11 @@ if selected_id is not None:
             st.write(f"**{sim_row['title']}** – {sim_row['source']}")
         with col2:
             if st.button("View", key=f"similar_{sim_id}"):
-                st.query_params["article_id"] = str(sim_id)
+                st.session_state["article_id"] = int(sim_id)
                 st.rerun()
 
     if st.button("⬅ Back to All Articles"):
-        st.query_params.clear()
+        st.session_state["article_id"] = None
         st.rerun()
 
     st.stop()
@@ -212,7 +224,7 @@ def display_article(row):
         st.markdown(f"### {row['title']}")
     with col2:
         if st.button("Read More", key=f"main_{row['id']}"):
-            st.query_params["article_id"] = str(row['id'])
+            st.session_state["article_id"] = int(row['id'])
             st.rerun()
             
     st.write(f"*{row['source']}* • {row['publish_date'].strftime('%B %d, %Y %H:%M')} • **Topic:** {row['cluster_label']}")
@@ -270,3 +282,199 @@ if not regular_articles.empty:
     with st.container(height=800, border=True):
         for idx, row in regular_articles.iterrows():
             display_article(row)
+
+# query_params = st.query_params
+# selected_id = st.query_params.get("article_id")
+
+# if selected_id:
+#     try:
+#         selected_id = int(selected_id)
+#     except (ValueError, TypeError):
+#         selected_id = None
+
+
+# # ----------------- DETAIL PAGE -----------------
+# if selected_id is not None:
+#     selected_id = int(selected_id)
+#     article = articles[articles['id'] == selected_id].iloc[0]
+#     idx = articles[articles['id'] == selected_id].index[0]
+
+#     st.title(article['title'])
+#     st.write(f"*{article['source']}* • {article['publish_date'].strftime('%B %d, %Y %H:%M')} • **Topic:** {article['cluster_label']}")
+#     if article.get("author"):
+#         st.caption(f"By {article['author']}")
+
+#     # Bias bar
+#     source_bias_val = article['source_bias']
+#     marker_color = get_bias_color(source_bias_val)
+
+#     st.markdown(
+#         f"""
+#         <div style='height: 16px; background: linear-gradient(to right, 
+#              #2563EB 0%, 
+#              #60A5FA 25%, 
+#              #9CA3AF 50%, 
+#              #FCA5A5 75%, 
+#              #DC2626 100%);
+#              position: relative; border-radius: 6px; margin-bottom: 16px; margin-top: 8px;'>
+#             <div style='
+#                 position: absolute;
+#                 left: {50 + source_bias_val * 25}%;
+#                 transform: translateX(-50%);
+#                 width: 16px;
+#                 height: 32px;
+#                 background: {marker_color};
+#                 border: 2px solid #111;
+#                 border-radius: 4px;
+#                 box-shadow: 0 0 8px rgba(0,0,0,0.4);
+#                 z-index: 2;
+#             '></div>
+#         </div>
+#         <div style='text-align: center; font-size: 0.85em; margin-top: -8px; margin-bottom: 16px; color: #FFFFFF;'>
+#             <strong>Source Bias</strong>
+#         </div>
+#         """,
+#         unsafe_allow_html=True
+#     )
+    
+#     if display_article_bias:
+#         if article['article_bias'] is None:
+#             st.info("**Estimated Article Bias:** Not Applicable (Non-Political Content)")
+            
+#         else:
+#             scores = {
+#                 'left-wing': article['article_bias'][0],
+#                 'center': article['article_bias'][1], 
+#                 'right-wing': article['article_bias'][2]
+#             }
+#             st.markdown("**Estimated Article Bias:** 🔵 Left: {:.1%} | ⚪ Center: {:.1%} | 🔴 Right: {:.1%}".format(
+#                 scores.get('left-wing', 0),
+#                 scores.get('center', 0), 
+#                 scores.get('right-wing', 0)
+#             ))
+
+#     st.subheader("Summary")
+#     summary_type = st.radio(
+#         "Choose summary type:",
+#         options=["Abstractive", "Extractive"],
+#         horizontal=True,
+#         key=f"summary_type_{selected_id}"
+#     )
+    
+#     # Display the selected summary
+#     if summary_type == "Abstractive":
+#         st.write(article['abs_summary'])
+#     elif summary_type == "Extractive":
+#         st.write(article['ext_summary'])
+#     st.markdown(f"[Read original article]({article['url']})", unsafe_allow_html=True)
+
+#     st.subheader("Similar Articles")
+#     similar_articles = get_similar_articles(embedding_matrix, idx, top_n=5)
+#     for _, sim_row in similar_articles.iterrows():
+#         sim_id = sim_row['id']
+#         col1, col2 = st.columns([4, 1])
+#         with col1:
+#             st.write(f"**{sim_row['title']}** – {sim_row['source']}")
+#         with col2:
+#             # if st.button("View", key=f"similar_{sim_id}"):
+#             #     st.query_params["article_id"] = str(sim_id)
+#             #     st.rerun()
+#             if st.button("View", key=f"similar_{sim_id}"):
+#                 # Assign a new dict instead of mutating in-place
+#                 st.query_params = {"article_id": str(sim_id)}
+#                 st.experimental_rerun()
+
+#     if st.button("⬅ Back to All Articles"):
+#         st.query_params.clear()
+#         st.rerun()
+
+#     st.stop()
+
+
+# # ----------------- MAIN PAGE -----------------
+# st.title("News Aggregator")
+# st.write("Browse articles from various sources")
+
+# sources = st.multiselect("Filter by source", options=articles['source'].unique(), default=articles['source'].unique())
+# cluster_labels = st.multiselect("Filter by topic", options=sorted(articles['cluster_label'].dropna().unique()), default=sorted(articles['cluster_label'].dropna().unique()))
+# keywords = st.text_input("Search in title or description")
+
+# filtered = articles[
+#     articles['source'].isin(sources) & 
+#     articles['cluster_label'].isin(cluster_labels)
+# ]
+# if keywords:
+#     keyword_lower = keywords.lower()
+#     filtered = filtered[
+#         filtered['title'].str.lower().str.contains(keyword_lower) |
+#         filtered['description'].str.lower().str.contains(keyword_lower)
+#     ]
+
+# # Separate top articles from regular articles
+# top_articles = filtered[filtered['top'] == True]
+# regular_articles = filtered[filtered['top'] == False]
+
+# def display_article(row):
+#     col1, col2 = st.columns([4, 1])
+#     with col1:
+#         st.markdown(f"### {row['title']}")
+#     with col2:
+#         if st.button("Read More", key=f"main_{row['id']}"):
+#             st.query_params["article_id"] = str(row['id'])
+#             st.rerun()
+            
+#     st.write(f"*{row['source']}* • {row['publish_date'].strftime('%B %d, %Y %H:%M')} • **Topic:** {row['cluster_label']}")
+#     if row.get("author"):
+#         st.caption(f"By {row['author']}")
+    
+#     # Bias bar
+#     source_bias_val = row['source_bias']
+#     marker_color = get_bias_color(source_bias_val)
+#     st.markdown(
+#         f"""
+#         <div style='height: 16px; background: linear-gradient(to right, 
+#              #2563EB 0%, 
+#              #60A5FA 25%, 
+#              #9CA3AF 50%, 
+#              #FCA5A5 75%, 
+#              #DC2626 100%);
+#              position: relative; border-radius: 6px; margin-bottom: 16px; margin-top: 8px;'>
+#             <div style='
+#                 position: absolute;
+#                 left: {50 + source_bias_val * 25}%;
+#                 transform: translateX(-50%);
+#                 width: 16px;
+#                 height: 32px;
+#                 background: {marker_color};
+#                 border: 2px solid #111;
+#                 border-radius: 4px;
+#                 box-shadow: 0 0 8px rgba(0,0,0,0.4);
+#                 z-index: 2;
+#             '></div>
+#         </div>
+#         <div style='text-align: center; font-size: 0.85em; margin-top: -8px; margin-bottom: 16px; color: #FFFFFF;'>
+#             <strong>Source Bias</strong>
+#         </div>
+#         """,
+#         unsafe_allow_html=True
+#     )
+#     st.markdown("---")
+
+# # Display top articles section
+# if not top_articles.empty:
+#     st.markdown("## Top Headlines")
+#     st.markdown("*Featured stories of the day*")
+    
+#     with st.container(height=600, border=True):
+#         for idx, row in top_articles.iterrows():
+#             display_article(row)
+
+# # Display regular articles section
+# if not regular_articles.empty:
+#     st.markdown("## All Articles")
+#     if not top_articles.empty:  # Only show this subtitle if there are top articles above
+#         st.markdown("*Browse all other stories*")
+    
+#     with st.container(height=800, border=True):
+#         for idx, row in regular_articles.iterrows():
+#             display_article(row)
