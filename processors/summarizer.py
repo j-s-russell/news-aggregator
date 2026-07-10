@@ -29,7 +29,7 @@ def summarize_ext(text, sentence_count=5):
 
 def summarize_articles(df):
     genai.configure(api_key=GOOGLE_API_KEY)
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    model = genai.GenerativeModel("gemini-2.5-flash")
     
     df['abs_summary'] = df['content'].apply(lambda x: summarize_abs(x, model))
     df['ext_summary'] = df['content'].apply(lambda x: summarize_ext(x, sentence_count=5))

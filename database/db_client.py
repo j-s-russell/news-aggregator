@@ -6,7 +6,52 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import USER, PASSWORD, HOST, PORT, DBNAME
 
 
+# def insert_raw_articles(df):
+#     connection = psycopg2.connect(
+#         user=USER,
+#         password=PASSWORD,
+#         host=HOST,
+#         port=PORT,
+#         dbname=DBNAME
+#     )
+    
+#     cursor = connection.cursor()
+        
+#     for _, row in df.iterrows():
+#         title = row['title']
+#         author = row['author']
+#         source = row['source']
+#         description = row['description']
+#         url = row['url']
+#         publish_date = row['publish_date']
+#         content = row['content']
+#         source_bias = row['source_bias']
+#         top = row['top']
+    
+#         cursor.execute("""
+#             INSERT INTO news_pipeline (title, author, source, description, url, publish_date, content, source_bias, top)
+#             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+#             ON CONFLICT (url) DO NOTHING
+#         """, (
+#             title,
+#             author,
+#             source,
+#             description,
+#             url,
+#             publish_date,
+#             content,
+#             source_bias,
+#             top
+#         ))
+        
+#         connection.commit()
+    
+#     cursor.close()
+#     connection.close()
+
 def insert_raw_articles(df):
+    df = df.where(pd.notnull(df), None)  # convert NaN -> NULL for Postgres
+
     connection = psycopg2.connect(
         user=USER,
         password=PASSWORD,
@@ -14,40 +59,35 @@ def insert_raw_articles(df):
         port=PORT,
         dbname=DBNAME
     )
-    
-    cursor = connection.cursor()
-        
-    for _, row in df.iterrows():
-        title = row['title']
-        author = row['author']
-        source = row['source']
-        description = row['description']
-        url = row['url']
-        publish_date = row['publish_date']
-        content = row['content']
-        source_bias = row['source_bias']
-        top = row['top']
-    
-        cursor.execute("""
-            INSERT INTO news_pipeline (title, author, source, description, url, publish_date, content, source_bias, top)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (url) DO NOTHING
-        """, (
-            title,
-            author,
-            source,
-            description,
-            url,
-            publish_date,
-            content,
-            source_bias,
-            top
-        ))
-        
-        connection.commit()
-    
-    cursor.close()
-    connection.close()
+
+    try:
+        cursor = connection.cursor()
+
+        for _, row in df.iterrows():
+            try:
+                cursor.execute("""
+                    INSERT INTO news_pipeline (title, author, source, description, url, publish_date, content, source_bias, top)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (url) DO NOTHING
+                """, (
+                    row['title'],
+                    row['author'],
+                    row['source'],
+                    row['description'],
+                    row['url'],
+                    row['publish_date'],
+                    row['content'],
+                    row['source_bias'],
+                    row['top']
+                ))
+                connection.commit()
+            except Exception as e:
+                connection.rollback()
+                print(f"Failed to insert article with url={row.get('url')}: {e}")
+
+        cursor.close()
+    finally:
+        connection.close()
     
 
 def get_all_articles():
@@ -83,7 +123,6 @@ def get_unprocessed_articles():
     FROM news_pipeline
     WHERE abs_summary IS NULL
       AND ext_summary IS NULL
-      AND article_bias IS NULL
       AND cluster_label IS NULL
     ORDER BY publish_date DESC
     LIMIT 500;
@@ -107,7 +146,6 @@ def remove_unprocessed_articles():
         DELETE FROM news_pipeline
         WHERE abs_summary IS NULL
           AND ext_summary IS NULL
-          AND article_bias IS NULL
           AND cluster_label IS NULL
     """)
     connection.commit()
@@ -140,12 +178,11 @@ def insert_articles(df):
         abs_summary = row['abs_summary']
         cluster_label = row['cluster_label']
         embedding = row['embedding']
-        article_bias = row['article_bias']
         ext_summary = row['ext_summary']
     
         cursor.execute("""
-            INSERT INTO news_pipeline (title, author, source, description, url, publish_date, content, source_bias, top, abs_summary, cluster_label, embedding, article_bias, ext_summary)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO news_pipeline (title, author, source, description, url, publish_date, content, source_bias, top, abs_summary, cluster_label, embedding, ext_summary)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (url) DO NOTHING
         """, (
             title,
@@ -160,7 +197,6 @@ def insert_articles(df):
             abs_summary,
             cluster_label,
             embedding,
-            article_bias,
             ext_summary
         ))
         
@@ -211,12 +247,11 @@ def replace_articles(df):
             abs_summary = row['abs_summary']
             cluster_label = row['cluster_label']
             embedding = row['embedding']
-            article_bias = row['article_bias']
             ext_summary = row['ext_summary']
         
             cursor.execute("""
-                INSERT INTO news_pipeline (title, author, source, description, url, publish_date, content, source_bias, top, abs_summary, cluster_label, embedding, article_bias, ext_summary)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO news_pipeline (title, author, source, description, url, publish_date, content, source_bias, top, abs_summary, cluster_label, embedding, ext_summary)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 title,
                 author,
@@ -230,7 +265,6 @@ def replace_articles(df):
                 abs_summary,
                 cluster_label,
                 embedding,
-                article_bias,
                 ext_summary
             ))
         

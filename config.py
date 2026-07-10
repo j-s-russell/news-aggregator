@@ -1,6 +1,9 @@
 import os
 from dotenv import load_dotenv
 
+#REMOVE
+load_dotenv(override=True)
+
 USER = os.getenv("USER")
 PASSWORD = os.getenv("PASSWORD")
 HOST = os.getenv("HOST")

@@ -15,7 +15,7 @@ import ast
 
 
 genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel("gemini-2.0-flash")
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 
 def clean_labels(output_str):
@@ -67,14 +67,13 @@ def normalize_labels(unique_labels):
     return label_map
 
 
-
 def cluster_articles(method='kmeans', normalize=False):
     df = get_all_articles()
     
     # Define clusters
     df['cluster_text'] = df['title'].fillna('') + '. ' + df['ext_summary'].fillna('')
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-    embeddings = model.encode(df['cluster_text'])
+    st_model = SentenceTransformer('all-MiniLM-L6-v2')
+    embeddings = st_model.encode(df['cluster_text'].tolist())
 
     pca = PCA(n_components=10, random_state=42)
     embeddings = pca.fit_transform(embeddings)

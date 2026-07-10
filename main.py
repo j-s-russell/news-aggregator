@@ -2,7 +2,7 @@ import argparse
 from retrievers.fetcher import fetch_articles
 from processors.summarizer import summarize_articles
 from processors.clusterer import cluster_articles
-from processors.bias_classifier import classify_bias
+# from processors.bias_classifier import classify_bias
 from database.db_client import get_unprocessed_articles, remove_unprocessed_articles, insert_articles
 
 
@@ -21,8 +21,8 @@ def main():
         df = get_unprocessed_articles()
         print("Summarizing articles...")
         df = summarize_articles(df)
-        print("Classifying articles...")
-        df = classify_bias(df)
+        # print("Classifying articles...")
+        # df = classify_bias(df)
         print("Removing unprocessed articles...")
         remove_unprocessed_articles()
         print("Inserting articles...")

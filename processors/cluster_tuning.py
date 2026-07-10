@@ -22,7 +22,7 @@ hdbscan_ = False
 param_testing = False
 
 genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel("gemini-2.0-flash")
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 def clean_labels(output_str):
     """Safely extract dictionary from Gemini's response"""
@@ -124,7 +124,7 @@ if hdbscan_:
         min_cluster_size=5,
         min_samples=1,
         metric='euclidean',
-        cluster_selection_epsilon=0.2  # Try this too
+        cluster_selection_epsilon=0.2
     )
     
     df['cluster'] = clusterer.fit_predict(embeddings_scaled)

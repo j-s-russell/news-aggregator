@@ -6,6 +6,8 @@ import os
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
+load_dotenv(override=True)
+
 USER = os.getenv("USER")
 PASSWORD = os.getenv("PASSWORD")
 HOST = os.getenv("HOST")
