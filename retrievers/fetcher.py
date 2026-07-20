@@ -47,7 +47,7 @@ def fetch_articles():
     
     left_sources = ['cnn', 'msnbc', 'the-huffington-post']
     right_sources = ['fox-news', 'the-washington-times', 'breitbart-news', 'national-review']
-    center_sources = ['reuters', 'bbc-news', 'associated-press', 'usa-today']
+    center_sources = ['reuters', 'bbc-news', 'associated-press', 'usa-today', 'the-hill', 'the-wall-street-journal']
     other_sources = ['abc-news', 'cbs-news', 'axios']
     sources = left_sources + right_sources + center_sources + other_sources
     
@@ -60,6 +60,7 @@ def fetch_articles():
                  'breitbart-news': 2,
                  'reuters': 0,
                  'bbc-news': 0,
+                 'the-wall-street-journal': 0,
                  'associated-press': -2,
                  'bloomberg': -1,
                  'usa-today': -1,
