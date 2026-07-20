@@ -1,13 +1,12 @@
 import pandas as pd
 from sentence_transformers import SentenceTransformer
-from transformers import pipeline
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from config import GOOGLE_API_KEY
 import google.generativeai as genai
 import time
-from database.db_client import get_all_articles, replace_articles
+from database.db_client import get_all_articles, replace_articles, insert_cluster_summary
 import hdbscan
 import re
 import ast
@@ -40,7 +39,7 @@ def label_cluster(texts):
     prompt = (
         "You are given a list of news article descriptions. "
         "Please respond with a **single word or short phrase** that summarizes the main topic of the cluster."
-        "Do NOT include an 'Other', 'News', or very general category. \n\n"
+        "Do NOT include an 'Other', 'News', 'Headlines' or very general category names. \n\n"
         f"Articles:\n{texts}\n\n"
         "Topic label:"
     )
@@ -67,7 +66,7 @@ def normalize_labels(unique_labels):
     return label_map
 
 
-def cluster_articles(method='kmeans', normalize=False):
+def cluster_articles(method='kmeans', normalize=False, reduce_dim=False):
     df = get_all_articles()
     
     # Define clusters
@@ -75,8 +74,10 @@ def cluster_articles(method='kmeans', normalize=False):
     st_model = SentenceTransformer('all-MiniLM-L6-v2')
     embeddings = st_model.encode(df['cluster_text'].tolist())
 
-    pca = PCA(n_components=10, random_state=42)
-    embeddings = pca.fit_transform(embeddings)
+    if reduce_dim:
+        pca = PCA(n_components=10, random_state=42)
+        embeddings = pca.fit_transform(embeddings)
+        
     scaler = StandardScaler()
     embeddings = scaler.fit_transform(embeddings)
     df['embedding'] = embeddings.tolist()
@@ -114,28 +115,47 @@ def cluster_articles(method='kmeans', normalize=False):
             df['cluster_label'] = df['cluster_label'].map(label_map).fillna(df['cluster_label'])
         except Exception as e:
             print(f"Error: {e}. Returning unnormalized labels.")
-    
-    # Add default categories
-    categories = df['cluster_label'].unique().tolist()
-    default_categories = ['Pop Culture', 'Science']
-    categories = categories + default_categories
-    
-    # Reassign to new labels
-    classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
-    
-    def assign_category(text):
-        result = classifier(text, candidate_labels=categories)
-        return result['labels'][0]
-    
-    df['cluster_label'] = df['cluster_text'].apply(assign_category)
-    
-    # Map labels to dataframe
+
     print(df['cluster_label'].unique())
     print(df['cluster_label'].value_counts())
     
     replace_articles(df)
-    
-    
+
+    print("Generating cluster summaries...")
+    for label in df['cluster_label'].unique():
+        generate_cluster_summary(label, df)
+    print("Done.")
+
+
+def generate_cluster_summary(cluster_label, articles_df):
+    cluster_arts = articles_df[articles_df['cluster_label'] == cluster_label]
+    if cluster_arts.empty:
+        return None
+
+    articles_text = ""
+    sampled = cluster_arts.sample(n=min(8, len(cluster_arts)), random_state=42)
+    for _, row in sampled.iterrows():
+        summary = str(row.get("ext_summary", ""))[:200]
+        articles_text += f"- {row['title']} ({row['source']}): {summary}\n"
+
+    prompt = (
+        "You are summarizing a news topic. Below are articles on the same subject.\n\n"
+        f"Articles:\n{articles_text}\n\n"
+        "Write a 4-5 sentence overview of what this topic covers, noting the main themes "
+        "and any key developments. Be factual and concise. Do not use bullet points."
+    )
+
+    try:
+        response = model.generate_content(prompt)
+        time.sleep(4.1)
+        summary_text = response.text.strip()
+        insert_cluster_summary(cluster_label, summary_text)
+        return summary_text
+    except Exception as e:
+        print(f"  Error generating summary for '{cluster_label}': {e}")
+        return None
+
+
 if __name__ == "__main__":
     cluster_articles()
     

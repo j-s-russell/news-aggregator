@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-# load_dotenv(override=True)
+load_dotenv(override=True)
 
 USER = os.getenv("USER")
 PASSWORD = os.getenv("PASSWORD")

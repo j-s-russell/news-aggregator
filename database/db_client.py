@@ -1,4 +1,5 @@
 import psycopg2
+import psycopg2.extras
 import pandas as pd
 import os
 import sys
@@ -277,11 +278,53 @@ def replace_articles(df):
         connection.rollback()
         print(f"Error inserting articles: {e}")
         raise
-        
     finally:
         cursor.close()
         connection.close()
-    
-    
-    
-    
+
+
+def insert_cluster_summary(cluster_label, summary_text):
+    connection = psycopg2.connect(
+        user=USER,
+        password=PASSWORD,
+        host=HOST,
+        port=PORT,
+        dbname=DBNAME
+    )
+
+    cursor = connection.cursor()
+    cursor.execute("""
+        INSERT INTO cluster_summaries (cluster_label, summary_text)
+        VALUES (%s, %s)
+        ON CONFLICT (cluster_label) DO UPDATE SET
+            summary_text = EXCLUDED.summary_text,
+            generated_at = now()
+    """, (cluster_label, summary_text))
+
+    connection.commit()
+    cursor.close()
+    connection.close()
+
+
+def get_cluster_summary(cluster_label):
+    connection = psycopg2.connect(
+        user=USER,
+        password=PASSWORD,
+        host=HOST,
+        port=PORT,
+        dbname=DBNAME
+    )
+
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute("""
+        SELECT * FROM cluster_summaries WHERE cluster_label = %s
+    """, (cluster_label,))
+
+    row = cursor.fetchone()
+    cursor.close()
+    connection.close()
+
+    if row is None:
+        return None
+
+    return dict(row)
