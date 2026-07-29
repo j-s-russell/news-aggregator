@@ -20,3 +20,5 @@ lxml_html_clean
 numpy
 scipy
 scikit-learn
+pgvector
+openai

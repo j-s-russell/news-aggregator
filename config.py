@@ -10,10 +10,11 @@ PORT = os.getenv("PORT")
 DBNAME = os.getenv("DBNAME")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
 
 def validate_config():
-    creds = ['USER', 'PASSWORD', 'HOST', 'PORT', 'DBNAME', 'NEWS_API_KEY', 'GOOGLE_API_KEY']
+    creds = ['USER', 'PASSWORD', 'HOST', 'PORT', 'DBNAME', 'NEWS_API_KEY', 'GOOGLE_API_KEY', 'DEEPSEEK_API_KEY']
     missing = [cred for cred in creds if not os.getenv(cred)]
     
     if missing:
