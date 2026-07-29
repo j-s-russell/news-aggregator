@@ -7,6 +7,7 @@ from config import GOOGLE_API_KEY
 import google.generativeai as genai
 import time
 from database.db_client import get_all_articles, replace_articles, insert_cluster_summary
+from processors.chunker import process_article_chunks
 import hdbscan
 import re
 import ast
@@ -124,6 +125,11 @@ def cluster_articles(method='kmeans', normalize=False, reduce_dim=False):
     print("Generating cluster summaries...")
     for label in df['cluster_label'].unique():
         generate_cluster_summary(label, df)
+    print("Done.")
+
+    print("Chunking articles...")
+    for _, row in df.iterrows():
+        process_article_chunks(row['id'], row['content'])
     print("Done.")
 
 

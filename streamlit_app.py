@@ -479,6 +479,34 @@ selected_id = st.session_state["article_id"]
 cluster_page = st.session_state["cluster_page"]
 
 
+# ----------------- SIDEBAR CHAT -----------------
+if "chat_history" not in st.session_state:
+    st.session_state["chat_history"] = []
+
+with st.sidebar:
+    st.subheader("Ask the News")
+
+    for msg in st.session_state["chat_history"]:
+        with st.chat_message(msg["role"]):
+            st.write(msg["content"])
+
+    if question := st.chat_input("Ask a question about the news..."):
+        with st.chat_message("user"):
+            st.write(question)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Searching articles..."):
+                from processors.rag import answer_question
+                answer = answer_question(
+                    question,
+                    chat_history=st.session_state["chat_history"],
+                )
+            st.write(answer)
+
+        st.session_state["chat_history"].append({"role": "user", "content": question})
+        st.session_state["chat_history"].append({"role": "assistant", "content": answer})
+
+
 # ----------------- DETAIL PAGE -----------------
 if selected_id is not None:
     selected_id = int(selected_id)

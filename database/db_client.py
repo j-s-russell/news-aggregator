@@ -236,6 +236,7 @@ def replace_articles(df):
         
         # Insert all articles from the dataframe
         for _, row in df.iterrows():
+            row_id = row['id']
             title = row['title']
             author = row['author']
             source = row['source']
@@ -249,11 +250,12 @@ def replace_articles(df):
             cluster_label = row['cluster_label']
             embedding = row['embedding']
             ext_summary = row['ext_summary']
-        
+
             cursor.execute("""
-                INSERT INTO news_pipeline (title, author, source, description, url, publish_date, content, source_bias, top, abs_summary, cluster_label, embedding, ext_summary)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO news_pipeline (id, title, author, source, description, url, publish_date, content, source_bias, top, abs_summary, cluster_label, embedding, ext_summary)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
+                row_id,
                 title,
                 author,
                 source,
@@ -328,3 +330,71 @@ def get_cluster_summary(cluster_label):
         return None
 
     return dict(row)
+
+
+def insert_chunks(article_id, chunks):
+    connection = psycopg2.connect(
+        user=USER,
+        password=PASSWORD,
+        host=HOST,
+        port=PORT,
+        dbname=DBNAME
+    )
+
+    cursor = connection.cursor()
+    args_str = ",".join(
+        cursor.mogrify(
+            "(%s, %s, %s, %s::vector)",
+            (article_id, text, idx, emb)
+        ).decode() for text, idx, emb in chunks
+    )
+    cursor.execute(f"""
+        INSERT INTO article_chunks (article_id, chunk_text, chunk_index, embedding)
+        VALUES {args_str}
+    """)
+
+    connection.commit()
+    cursor.close()
+    connection.close()
+
+
+def get_chunks_by_article(article_id):
+    connection = psycopg2.connect(
+        user=USER,
+        password=PASSWORD,
+        host=HOST,
+        port=PORT,
+        dbname=DBNAME
+    )
+
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute("""
+        SELECT * FROM article_chunks WHERE article_id = %s ORDER BY chunk_index
+    """, (article_id,))
+
+    rows = cursor.fetchall()
+    cursor.close()
+    connection.close()
+
+    return [dict(row) for row in rows]
+
+
+def retrieve_chunks(query_embedding, match_count=5):
+    connection = psycopg2.connect(
+        user=USER,
+        password=PASSWORD,
+        host=HOST,
+        port=PORT,
+        dbname=DBNAME
+    )
+
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute("""
+        SELECT * FROM match_chunks(%s::vector, %s)
+    """, (str(query_embedding), match_count))
+
+    rows = cursor.fetchall()
+    cursor.close()
+    connection.close()
+
+    return [dict(row) for row in rows]
