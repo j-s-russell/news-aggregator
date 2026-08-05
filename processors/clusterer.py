@@ -44,9 +44,14 @@ def label_cluster(texts):
         f"Articles:\n{texts}\n\n"
         "Topic label:"
     )
-    response = model.generate_content(prompt)
-    time.sleep(4.1)
-    return response.text.strip()
+    try:
+        response = model.generate_content(prompt)
+        time.sleep(4.1)
+        return response.text.strip()
+    except Exception as e:
+        print(f"  Error labeling cluster: {e}")
+        time.sleep(4.1)
+        return None
 
 def normalize_labels(unique_labels):
     prompt = f"""
@@ -103,8 +108,11 @@ def cluster_articles(method='kmeans', normalize=False, reduce_dim=False):
     unique_labels = set()
     for cluster_id in sorted(df['cluster'].unique()):
         cluster_summaries = df[df['cluster'] == cluster_id]['cluster_text'].tolist()
-        text_block = "\n".join(cluster_summaries)
+        sampled = cluster_summaries[:15]
+        text_block = "\n".join(s[:300] for s in sampled)
         label = label_cluster(text_block)
+        if label is None:
+            label = f"Cluster {cluster_id}"
         unique_labels.add(label)
         cluster_labels[cluster_id] = label
         
@@ -129,7 +137,7 @@ def cluster_articles(method='kmeans', normalize=False, reduce_dim=False):
 
     print("Chunking articles...")
     for _, row in df.iterrows():
-        process_article_chunks(row['id'], row['content'])
+        process_article_chunks(row['id'], row['ext_summary'])
     print("Done.")
 
 

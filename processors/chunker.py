@@ -4,7 +4,7 @@ from database.db_client import insert_chunks
 st_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 
-def chunk_text(content, chunk_size=500, overlap=50):
+def chunk_text(content, chunk_size=1000, overlap=100):
     chunks = []
     start = 0
     while start < len(content):

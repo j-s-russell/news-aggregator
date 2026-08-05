@@ -12,12 +12,17 @@ nltk.download('punkt_tab')
 def summarize_abs(text, model):
     prompt = (
         "Please summarize the following news article in 4-5 concise sentences.\n\n"
-        f"Article:\n{text}\n\n"
+        f"Article:\n{text[:8000]}\n\n"
         "Summary:"
     )
-    response = model.generate_content(prompt)
-    time.sleep(5)
-    return response.text.strip()
+    try:
+        response = model.generate_content(prompt)
+        time.sleep(5)
+        return response.text.strip()
+    except Exception as e:
+        print(f"  Error summarizing article: {e}")
+        time.sleep(5)
+        return ""
 
 
 def summarize_ext(text, sentence_count=5):

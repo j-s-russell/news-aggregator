@@ -359,6 +359,25 @@ st.markdown("""
         border: none !important;
     }
 
+    /* Chat messages */
+    [data-testid="stChatMessage"] {
+        background-color: #1E293B !important;
+        border: 1px solid #334155 !important;
+        border-radius: 10px;
+        padding: 8px 12px;
+        margin-bottom: 8px;
+    }
+    [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] p {
+        color: #E2E8F0 !important;
+    }
+    [data-testid="stChatMessage-user"] {
+        background-color: #1D4ED8 !important;
+        border-color: #2563EB !important;
+    }
+    [data-testid="stChatMessage-user"] [data-testid="stMarkdownContainer"] p {
+        color: #FFFFFF !important;
+    }
+
     /* Topic nav buttons — Browse by topic */
     .topic-nav-label {
         font-size: 0.85rem;
@@ -486,11 +505,9 @@ if "chat_history" not in st.session_state:
 with st.sidebar:
     st.subheader("Ask the News")
 
-    for msg in st.session_state["chat_history"]:
-        with st.chat_message(msg["role"]):
-            st.write(msg["content"])
+    question = st.chat_input("Ask a question...")
 
-    if question := st.chat_input("Ask a question about the news..."):
+    if question:
         with st.chat_message("user"):
             st.write(question)
 
@@ -500,11 +517,17 @@ with st.sidebar:
                 answer = answer_question(
                     question,
                     chat_history=st.session_state["chat_history"],
+                    match_count=15,
                 )
             st.write(answer)
 
         st.session_state["chat_history"].append({"role": "user", "content": question})
         st.session_state["chat_history"].append({"role": "assistant", "content": answer})
+        st.rerun()
+
+    for msg in st.session_state["chat_history"]:
+        with st.chat_message(msg["role"]):
+            st.write(msg["content"])
 
 
 # ----------------- DETAIL PAGE -----------------
