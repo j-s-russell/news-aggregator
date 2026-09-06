@@ -6,7 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from config import GOOGLE_API_KEY
 import google.generativeai as genai
 import time
-from database.db_client import get_all_articles, replace_articles, insert_cluster_summary
+from database.db_client import get_all_articles, replace_articles, insert_cluster_summary, delete_all_cluster_summaries
 from processors.chunker import process_article_chunks
 import hdbscan
 import re
@@ -130,6 +130,9 @@ def cluster_articles(method='kmeans', normalize=False, reduce_dim=False):
     
     replace_articles(df)
 
+    print("Clearing old cluster summaries...")
+    delete_all_cluster_summaries()
+
     print("Generating cluster summaries...")
     for label in df['cluster_label'].unique():
         generate_cluster_summary(label, df)
@@ -153,10 +156,12 @@ def generate_cluster_summary(cluster_label, articles_df):
         articles_text += f"- {row['title']} ({row['source']}): {summary}\n"
 
     prompt = (
-        "You are summarizing a news topic. Below are articles on the same subject.\n\n"
+        f"You are summarizing a news topic labeled \"{cluster_label}\".\n"
+        "Below are articles that belong to this topic.\n\n"
         f"Articles:\n{articles_text}\n\n"
-        "Write a 4-5 sentence overview of what this topic covers, noting the main themes "
-        "and any key developments. Be factual and concise. Do not use bullet points."
+        f"Write a 4-5 sentence overview focused ONLY on the \"{cluster_label}\" topic. "
+        "Do not include information about other subjects or tangentially related stories. "
+        "Be factual and concise. Do not use bullet points."
     )
 
     try:

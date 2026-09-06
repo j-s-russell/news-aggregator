@@ -109,7 +109,7 @@ CREATE TABLE article_chunks (
   created_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX ON article_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+CREATE INDEX article_chunks_embedding_idx ON article_chunks USING hnsw (embedding vector_cosine_ops);
 
 CREATE OR REPLACE FUNCTION match_chunks(
   query_embedding vector(384),

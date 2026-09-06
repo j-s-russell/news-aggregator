@@ -308,6 +308,17 @@ def insert_cluster_summary(cluster_label, summary_text):
     connection.close()
 
 
+def delete_all_cluster_summaries():
+    connection = psycopg2.connect(
+        user=USER, password=PASSWORD, host=HOST, port=PORT, dbname=DBNAME
+    )
+    cursor = connection.cursor()
+    cursor.execute("DELETE FROM cluster_summaries")
+    connection.commit()
+    cursor.close()
+    connection.close()
+
+
 def get_cluster_summary(cluster_label):
     connection = psycopg2.connect(
         user=USER,
