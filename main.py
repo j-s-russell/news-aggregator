@@ -28,7 +28,7 @@ def main():
         print("Inserting articles...")
         insert_articles(df)
         print("Clustering articles...")
-        cluster_articles()
+        cluster_articles(normalize=True)
         
 if __name__ == "__main__":
     main()

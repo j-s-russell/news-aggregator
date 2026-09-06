@@ -36,11 +36,21 @@ def clean_labels(output_str):
         return None
     
     
-def label_cluster(texts):
+def label_cluster(texts, existing_labels=None):
+    labels_note = ""
+    if existing_labels:
+        labels_note = (
+            "\nThese topic labels already exist for other clusters: "
+            f"{', '.join(existing_labels)}.\n"
+        )
     prompt = (
         "You are given a list of news article descriptions. "
         "Please respond with a **single word or short phrase** that summarizes the main topic of the cluster."
-        "Do NOT include an 'Other', 'News', 'Headlines' or very general category names. \n\n"
+        "Do NOT include an 'Other', 'News', 'Headlines' or very general category names. "
+        "Avoid generic umbrella terms like 'Sports', 'Politics', 'Business' — prefer specific "
+        "subtopics like 'NFL Football', 'Presidential Election', 'Tech Stocks'."
+        f"{labels_note}"
+        "Choose a label that is specific and does NOT duplicate or overlap with existing labels.\n\n"
         f"Articles:\n{texts}\n\n"
         "Topic label:"
     )
@@ -56,20 +66,27 @@ def label_cluster(texts):
 def normalize_labels(unique_labels):
     prompt = f"""
     I have these news article cluster labels: {unique_labels}
-    
-    I want to merge duplicate into single categories.
-    
-    These labels need to describe the same topic, not just similar topics ("Legal/Political" and "Politics", "Basketball" and "NBA", etc.)
-    
-    Please provide a Python dictionary mapping each label to the most appropriate main category.
-    Only return the dictionary, no other text.
-    
-    Format: {{"original_label": "main_category", ...}}
+
+    Consolidate labels that describe the SAME topic into one canonical label.
+    Example: "Athletics" and "Sports" both describe general sports -> map both to "Sports".
+    Example: "Legal/Political" and "Politics" both describe political news -> map both to "Politics".
+    Do NOT merge labels describing genuinely different subtopics (e.g., "NFL Football" and
+    "College Athletics" stay separate; "Ukraine War" and "Middle East Conflict" stay separate).
+
+    Map every label to its canonical category. Provide only a Python dictionary, no other text.
+
+    Format: {{"original_label": "canonical_category", ...}}
     """
-    response = model.generate_content(prompt)
-    time.sleep(4.1)
-    label_map = clean_labels(response.text)
-    return label_map
+    for attempt in range(2):
+        try:
+            response = model.generate_content(prompt)
+            label_map = clean_labels(response.text)
+            if label_map and set(label_map) >= set(unique_labels):
+                return label_map
+        except Exception as e:
+            print(f"  Error normalizing labels (attempt {attempt+1}): {e}")
+        time.sleep(4.1)
+    return None
 
 
 def cluster_articles(method='kmeans', normalize=False, reduce_dim=False):
@@ -103,16 +120,23 @@ def cluster_articles(method='kmeans', normalize=False, reduce_dim=False):
         kmeans = KMeans(n_clusters=n_clusters, random_state=42)
         df['cluster'] = kmeans.fit_predict(embeddings)
     
-    # Label clusters
+    # Label clusters (largest first so the biggest cluster claims the canonical term)
     cluster_labels = {}
     unique_labels = set()
-    for cluster_id in sorted(df['cluster'].unique()):
+    cluster_rank = (
+        df['cluster'].value_counts()
+        .sort_values(ascending=False)
+        .index.tolist()
+    )
+    for cluster_id in cluster_rank:
         cluster_summaries = df[df['cluster'] == cluster_id]['cluster_text'].tolist()
         sampled = cluster_summaries[:15]
         text_block = "\n".join(s[:300] for s in sampled)
-        label = label_cluster(text_block)
+        label = label_cluster(text_block, existing_labels=list(unique_labels))
         if label is None:
             label = f"Cluster {cluster_id}"
+        if label in unique_labels:
+            label = f"{label}-{cluster_id}"
         unique_labels.add(label)
         cluster_labels[cluster_id] = label
         
@@ -121,7 +145,8 @@ def cluster_articles(method='kmeans', normalize=False, reduce_dim=False):
     if normalize:
         try:
             label_map = normalize_labels(unique_labels)
-            df['cluster_label'] = df['cluster_label'].map(label_map).fillna(df['cluster_label'])
+            if label_map:
+                df['cluster_label'] = df['cluster_label'].map(label_map).fillna(df['cluster_label'])
         except Exception as e:
             print(f"Error: {e}. Returning unnormalized labels.")
 
@@ -176,7 +201,7 @@ def generate_cluster_summary(cluster_label, articles_df):
 
 
 if __name__ == "__main__":
-    cluster_articles()
+    cluster_articles(normalize=True)
     
     
     
