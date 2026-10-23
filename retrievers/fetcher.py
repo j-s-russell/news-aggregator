@@ -42,8 +42,8 @@ def fetch_articles():
     
     # Settings
     category = 'politics'
-    page_size = 5
-    max_articles = 10
+    page_size = 25
+    max_articles = 25
     
     left_sources = ['cnn', 'msnbc', 'the-huffington-post']
     right_sources = ['fox-news', 'the-washington-times', 'breitbart-news', 'national-review']
@@ -78,7 +78,7 @@ def fetch_articles():
     # Top Headlines
     
     top_url = 'https://newsapi.org/v2/top-headlines'
-    page_size = 5
+    page_size = 25
     max_top_articles = 20
     top_sources = ",".join(sources)
     
