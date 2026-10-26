@@ -95,14 +95,14 @@ def cluster_articles(method='kmeans', normalize=False, reduce_dim=False):
     # Define clusters
     df['cluster_text'] = df['title'].fillna('') + '. ' + df['ext_summary'].fillna('')
     st_model = SentenceTransformer('all-MiniLM-L6-v2')
-    embeddings = st_model.encode(df['cluster_text'].tolist())
+    embeddings = st_model.encode(df['cluster_text'].tolist(), normalize_embeddings=True)
 
     if reduce_dim:
         pca = PCA(n_components=10, random_state=42)
         embeddings = pca.fit_transform(embeddings)
-        
-    scaler = StandardScaler()
-    embeddings = scaler.fit_transform(embeddings)
+        # Normalize after PCA to maintain unit norm for cosine distance
+        from sklearn.preprocessing import normalize
+        embeddings = normalize(embeddings)
     df['embedding'] = embeddings.tolist()
 
     if method == 'hdbscan':
@@ -116,7 +116,7 @@ def cluster_articles(method='kmeans', normalize=False, reduce_dim=False):
         df['cluster'] = clusterer.fit_predict(embeddings)
     
     else:
-        n_clusters = 10
+        n_clusters = 8
         kmeans = KMeans(n_clusters=n_clusters, random_state=42)
         df['cluster'] = kmeans.fit_predict(embeddings)
     
