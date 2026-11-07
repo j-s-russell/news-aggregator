@@ -7,9 +7,7 @@ from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler
-from config import GOOGLE_API_KEY
-import google.generativeai as genai
-import time
+from processors.llm import generate
 from database.db_client import get_all_articles, replace_articles
 import matplotlib.pyplot as plt
 import hdbscan
@@ -21,8 +19,6 @@ import re
 hdbscan_ = False
 param_testing = False
 
-genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel("gemini-2.5-flash")
 
 def clean_labels(output_str):
     """Safely extract dictionary from Gemini's response"""
@@ -50,9 +46,7 @@ def label_cluster(texts):
         f"Articles:\n{texts}\n\n"
         "Topic label:"
     )
-    response = model.generate_content(prompt)
-    time.sleep(4.1)
-    return response.text.strip()
+    return generate(prompt)
 
 
 def normalize_labels(unique_labels):
@@ -68,9 +62,8 @@ def normalize_labels(unique_labels):
     
     Format: {{"original_label": "main_category", ...}}
     """
-    response = model.generate_content(prompt)
-    time.sleep(4.1)
-    label_map = clean_labels(response.text)
+    response = generate(prompt)
+    label_map = clean_labels(response) if response else None
     return label_map
 
 

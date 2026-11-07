@@ -133,6 +133,46 @@ def get_unprocessed_articles():
     connection.close()
     return df
 
+def get_articles_missing_abs_summary():
+    connection = psycopg2.connect(
+        user=USER,
+        password=PASSWORD,
+        host=HOST,
+        port=PORT,
+        dbname=DBNAME
+    )
+
+    query = """
+    SELECT id, content
+    FROM news_pipeline
+    WHERE (abs_summary IS NULL OR abs_summary = '')
+      AND ext_summary IS NOT NULL
+    """
+
+    df = pd.read_sql(query, connection)
+    connection.close()
+    return df
+
+
+def update_abs_summary(article_id, summary):
+    connection = psycopg2.connect(
+        user=USER,
+        password=PASSWORD,
+        host=HOST,
+        port=PORT,
+        dbname=DBNAME
+    )
+
+    cursor = connection.cursor()
+    cursor.execute(
+        "UPDATE news_pipeline SET abs_summary = %s WHERE id = %s",
+        (summary, int(article_id))
+    )
+    connection.commit()
+    cursor.close()
+    connection.close()
+
+
 def remove_unprocessed_articles():
     connection = psycopg2.connect(
         user=USER,

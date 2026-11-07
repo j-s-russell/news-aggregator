@@ -8,7 +8,7 @@ newspaper3k
 beautifulsoup4
 sentence-transformers
 keybert
-google-generativeai
+google-genai
 streamlit
 bert-extractive-summarizer
 spacy

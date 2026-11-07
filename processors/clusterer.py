@@ -3,19 +3,13 @@ from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from config import GOOGLE_API_KEY
-import google.generativeai as genai
-import time
+from processors.llm import generate, LLMQuotaError
 from database.db_client import get_all_articles, replace_articles, insert_cluster_summary, delete_all_cluster_summaries
 from processors.chunker import process_article_chunks
 import hdbscan
 import re
 import ast
 
-
-
-genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel("gemini-2.5-flash")
 
 
 def clean_labels(output_str):
@@ -54,14 +48,10 @@ def label_cluster(texts, existing_labels=None):
         f"Articles:\n{texts}\n\n"
         "Topic label:"
     )
-    try:
-        response = model.generate_content(prompt)
-        time.sleep(4.1)
-        return response.text.strip()
-    except Exception as e:
-        print(f"  Error labeling cluster: {e}")
-        time.sleep(4.1)
-        return None
+    label = generate(prompt)
+    if label is None:
+        print("  Error labeling cluster")
+    return label
 
 def normalize_labels(unique_labels):
     prompt = f"""
@@ -78,14 +68,11 @@ def normalize_labels(unique_labels):
     Format: {{"original_label": "canonical_category", ...}}
     """
     for attempt in range(2):
-        try:
-            response = model.generate_content(prompt)
-            label_map = clean_labels(response.text)
-            if label_map and set(label_map) >= set(unique_labels):
-                return label_map
-        except Exception as e:
-            print(f"  Error normalizing labels (attempt {attempt+1}): {e}")
-        time.sleep(4.1)
+        response = generate(prompt)
+        label_map = clean_labels(response) if response else None
+        if label_map and set(label_map) >= set(unique_labels):
+            return label_map
+        print(f"  Error normalizing labels (attempt {attempt+1})")
     return None
 
 
@@ -134,7 +121,8 @@ def cluster_articles(method='kmeans', normalize=False, reduce_dim=False):
         text_block = "\n".join(s[:300] for s in sampled)
         label = label_cluster(text_block, existing_labels=list(unique_labels))
         if label is None:
-            label = f"Cluster {cluster_id}"
+            # Don't overwrite the existing labels with placeholders
+            raise RuntimeError(f"Labeling failed for cluster {cluster_id}; leaving existing labels untouched")
         if label in unique_labels:
             label = f"{label}-{cluster_id}"
         unique_labels.add(label)
@@ -155,12 +143,24 @@ def cluster_articles(method='kmeans', normalize=False, reduce_dim=False):
     
     replace_articles(df)
 
-    print("Clearing old cluster summaries...")
-    delete_all_cluster_summaries()
-
     print("Generating cluster summaries...")
+    summaries = {}
     for label in df['cluster_label'].unique():
-        generate_cluster_summary(label, df)
+        try:
+            summary = generate_cluster_summary(label, df)
+        except LLMQuotaError as e:
+            print(f"  Gemini quota exhausted, stopping cluster summaries: {e}")
+            break
+        if summary:
+            summaries[label] = summary
+
+    if summaries:
+        print(f"Replacing cluster summaries ({len(summaries)} generated)...")
+        delete_all_cluster_summaries()
+        for label, summary in summaries.items():
+            insert_cluster_summary(label, summary)
+    else:
+        print("No cluster summaries generated; keeping existing ones.")
     print("Done.")
 
     print("Chunking articles...")
@@ -189,15 +189,10 @@ def generate_cluster_summary(cluster_label, articles_df):
         "Be factual and concise. Do not use bullet points."
     )
 
-    try:
-        response = model.generate_content(prompt)
-        time.sleep(4.1)
-        summary_text = response.text.strip()
-        insert_cluster_summary(cluster_label, summary_text)
-        return summary_text
-    except Exception as e:
-        print(f"  Error generating summary for '{cluster_label}': {e}")
-        return None
+    summary_text = generate(prompt)
+    if summary_text is None:
+        print(f"  Error generating summary for '{cluster_label}'")
+    return summary_text
 
 
 if __name__ == "__main__":

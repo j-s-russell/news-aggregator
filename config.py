@@ -11,6 +11,7 @@ DBNAME = os.getenv("DBNAME")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
 
 def validate_config():

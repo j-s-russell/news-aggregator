@@ -1,6 +1,6 @@
 import argparse
 from retrievers.fetcher import fetch_articles
-from processors.summarizer import summarize_articles
+from processors.summarizer import summarize_articles, backfill_abs_summaries
 from processors.clusterer import cluster_articles
 # from processors.bias_classifier import classify_bias
 from database.db_client import get_unprocessed_articles, remove_unprocessed_articles, insert_articles
@@ -27,6 +27,8 @@ def main():
         remove_unprocessed_articles()
         print("Inserting articles...")
         insert_articles(df)
+        print("Backfilling missing abstractive summaries...")
+        backfill_abs_summaries()
         print("Clustering articles...")
         cluster_articles(normalize=True)
         
