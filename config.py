@@ -12,6 +12,8 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+# Max new articles summarized by Gemini per run (keeps usage within quota)
+MAX_NEW_SUMMARIES = int(os.getenv("MAX_NEW_SUMMARIES", "150"))
 
 
 def validate_config():

@@ -7,6 +7,7 @@ from newspaper import Article
 import psycopg2
 from config import *
 from database.db_client import insert_raw_articles
+from processors.filters import is_sports
 
 
 def scrape(url):
@@ -45,30 +46,34 @@ def fetch_articles():
     page_size = 15
     max_articles = 15
     
-    left_sources = ['cnn', 'msnbc', 'the-huffington-post']
-    right_sources = ['fox-news', 'the-washington-times', 'breitbart-news', 'national-review']
-    center_sources = ['reuters', 'bbc-news', 'associated-press', 'usa-today', 'the-hill', 'the-wall-street-journal']
-    other_sources = ['abc-news', 'cbs-news', 'axios']
+    # AP News and The Hill are excluded: they block scrapers and opt out of AI use in robots.txt
+    left_sources = ['cnn', 'msnbc', 'the-huffington-post', 'politico', 'the-washington-post', 'time']
+    right_sources = ['fox-news', 'the-washington-times', 'breitbart-news', 'national-review', 'the-american-conservative']
+    center_sources = ['bbc-news', 'usa-today', 'the-wall-street-journal', 'newsweek']
+    other_sources = ['abc-news', 'cbs-news', 'axios', 'nbc-news', 'al-jazeera-english']
     sources = left_sources + right_sources + center_sources + other_sources
-    
+
     # Bias scores from www.allsides.com
     bias_dict = {'cnn': -1,
                  'msnbc': -2,
                  'the-huffington-post': -2,
+                 'politico': -1,
+                 'the-washington-post': -1,
+                 'time': -1,
                  'fox-news': 2,
                  'the-washington-times': 1,
                  'breitbart-news': 2,
-                 'reuters': 0,
+                 'national-review': 1,
+                 'the-american-conservative': 1,
                  'bbc-news': 0,
                  'the-wall-street-journal': 0,
-                 'associated-press': -2,
-                 'bloomberg': -1,
                  'usa-today': -1,
-                 'the-hill': 0,
+                 'newsweek': 0,
                  'abc-news': -1,
                  'axios': -1,
                  'cbs-news': -1,
-                 'national-review': 1}
+                 'nbc-news': -1,
+                 'al-jazeera-english': -1}
     
     def get_bias_value(source):
         return bias_dict.get(source, 0)
@@ -94,16 +99,16 @@ def fetch_articles():
         }
     
     
-        response = requests.get(url, params=params)
+        response = requests.get(top_url, params=params)
         data = response.json()
-        
+
         if response.status_code != 200 or 'articles' not in data:
             print(f"Error on page {page}: {data.get('message', 'Unknown error')}")
             break
-    
+
         if not data['articles']:
             break
-        
+
         top_articles.extend(data['articles'])
         
         time.sleep(1)
@@ -152,6 +157,12 @@ def fetch_articles():
     df = df.rename(columns={'publishedAt': 'publish_date'})
     df['source'] = df['source'].apply(lambda x: x['id'])
     df['source_bias'] = df['source'].apply(get_bias_value)
+
+    # Drop sports before scraping so they never reach Gemini
+    sports_mask = df.apply(is_sports, axis=1)
+    print(f"Dropping {sports_mask.sum()} sports articles")
+    df = df[~sports_mask].copy()
+
     df['content'] = df['url'].apply(scrape)
     df = df.sort_values(by='top', ascending=False)
     df = df.drop_duplicates(subset='url', keep='first')
