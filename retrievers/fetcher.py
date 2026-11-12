@@ -168,7 +168,7 @@ def fetch_articles():
     df = df.drop_duplicates(subset='url', keep='first')
     df = df.drop_duplicates(subset='title', keep='first')
     df = df[df['content'].str.len().between(1000, 12000)]
-    df = df[~df['content'].str.contains('live', case=False, na=False)]
+    df = df[~df['content'].str.contains(r'\blive\b', case=False, na=False, regex=True)]
     df = df[~df['title'].str.contains('video', case=False, na=False)]
     df = df.reset_index(drop=True)
     
