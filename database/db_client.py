@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from config import USER, PASSWORD, HOST, PORT, DBNAME
+from config import USER, PASSWORD, HOST, PORT, DBNAME, MAX_NEW_SUMMARIES
 
 
 # def insert_raw_articles(df):
@@ -126,10 +126,10 @@ def get_unprocessed_articles():
       AND ext_summary IS NULL
       AND cluster_label IS NULL
     ORDER BY publish_date DESC
-    LIMIT 500;
+    LIMIT %s;
     """
-    
-    df = pd.read_sql(query, connection)
+
+    df = pd.read_sql(query, connection, params=(MAX_NEW_SUMMARIES,))
     connection.close()
     return df
 

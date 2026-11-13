@@ -2,6 +2,8 @@
 
 A news aggregation and analysis platform that fetches articles from multiple sources, summarizes and clusters them, and presents them through a dark-themed Streamlit web interface — complete with a retrieval-augmented generation (RAG) chat for asking questions about the news.
 
+**🔗 Live app: [jsr-news-aggregator.streamlit.app](https://jsr-news-aggregator.streamlit.app/)**
+
 ## ✨ Features
 
 - **Multi-source Article Fetching**: Pulls articles from NewsAPI with configurable sources

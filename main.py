@@ -23,6 +23,7 @@ def main():
         df = summarize_articles(df)
         # print("Classifying articles...")
         # df = classify_bias(df)
+        # Also discards articles beyond the MAX_NEW_SUMMARIES cap (the oldest ones)
         print("Removing unprocessed articles...")
         remove_unprocessed_articles()
         print("Inserting articles...")

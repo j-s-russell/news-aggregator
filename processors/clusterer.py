@@ -6,6 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from processors.llm import generate, LLMQuotaError
 from database.db_client import get_all_articles, replace_articles, insert_cluster_summary, delete_all_cluster_summaries
 from processors.chunker import process_article_chunks
+from processors.filters import is_sports
 import hdbscan
 import re
 import ast
@@ -42,7 +43,7 @@ def label_cluster(texts, existing_labels=None):
         "Please respond with a **single word or short phrase** that summarizes the main topic of the cluster."
         "Do NOT include an 'Other', 'News', 'Headlines' or very general category names. "
         "Avoid generic umbrella terms like 'Sports', 'Politics', 'Business' — prefer specific "
-        "subtopics like 'NFL Football', 'Presidential Election', 'Tech Stocks'."
+        "subtopics like 'Immigration Policy', 'Presidential Election', 'Tech Stocks'."
         f"{labels_note}"
         "Choose a label that is specific and does NOT duplicate or overlap with existing labels.\n\n"
         f"Articles:\n{texts}\n\n"
@@ -78,7 +79,12 @@ def normalize_labels(unique_labels):
 
 def cluster_articles(method='kmeans', normalize=False, reduce_dim=False):
     df = get_all_articles()
-    
+
+    # Drop sports rows; replace_articles() below rewrites the table, purging them from the DB
+    sports_mask = df.apply(is_sports, axis=1)
+    print(f"Purging {sports_mask.sum()} sports articles from DB")
+    df = df[~sports_mask].reset_index(drop=True)
+
     # Define clusters
     df['cluster_text'] = df['title'].fillna('') + '. ' + df['ext_summary'].fillna('')
     st_model = SentenceTransformer('all-MiniLM-L6-v2')
